@@ -1,0 +1,44 @@
+services:
+  - type: web
+    name: rtbque
+    runtime: node
+    plan: free
+    buildCommand: |
+      corepack enable
+      corepack prepare pnpm@8.6.0 --activate
+      pnpm install
+      mkdir -p apps/server/node_modules/shared
+      pnpm build:shared
+      pnpm build:server
+    startCommand: cd apps/server && node dist/index.js
+    envVars:
+      - key: PORT
+        value: 4001
+      - key: CLIENT_URL
+        fromService:
+          type: web
+          name: rtbque-client
+          property: url
+      - key: YOUTUBE_API_KEY
+        sync: false
+    autoDeploy: true
+
+  - type: web
+    name: rtbque-client
+    runtime: node
+    plan: free
+    buildCommand: |
+      corepack enable
+      corepack prepare pnpm@8.6.0 --activate
+      pnpm install
+      mkdir -p apps/client/node_modules/shared
+      pnpm build:shared
+      pnpm build:client
+    startCommand: cd apps/client && pnpm start
+    envVars:
+      - key: NEXT_PUBLIC_SERVER_URL
+        fromService:
+          type: web
+          name: rtbque
+          property: url
+    autoDeploy: true 

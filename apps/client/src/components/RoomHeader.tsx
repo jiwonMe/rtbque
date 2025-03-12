@@ -1,9 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/useIsMobile';
+import Image from 'next/image';
+import Link from 'next/link';
 
 interface RoomHeaderProps {
   roomId: string;
@@ -23,7 +25,14 @@ export default function RoomHeader({
   const router = useRouter();
   const [copied, setCopied] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [isLoaded, setIsLoaded] = useState(false);
   const isMobile = useIsMobile();
+  
+  // 컴포넌트 마운트 시 애니메이션 효과를 위한 상태 설정
+  useEffect(() => {
+    const timer = setTimeout(() => setIsLoaded(true), 100);
+    return () => clearTimeout(timer);
+  }, []);
   
   // 방 코드 복사 핸들러
   const handleCopyRoomId = () => {
@@ -51,59 +60,75 @@ export default function RoomHeader({
   
   return (
     <header className={cn(
-      "bg-dark-900 border-b border-dark-700",
-      "flex items-center justify-between px-4 py-2"
+      "bg-dark-900/90 backdrop-blur-md border-b border-dark-700/70",
+      "flex items-center justify-between px-4 py-2",
+      "transition-all duration-500",
+      isLoaded ? "opacity-100" : "opacity-0 translate-y-[-10px]"
     )}>
       {/* 왼쪽: 로고 및 방 정보 */}
       <div className="flex items-center">
-        <h1 className={cn(
-          "text-xl font-bold mr-3",
-          "bg-clip-text text-transparent bg-gradient-to-r from-primary-400 to-secondary-400"
-        )}>
-          RTBQue
-        </h1>
+        <Link href="/" className="mr-4 transition-transform duration-300 hover:scale-105">
+          <Image 
+            src="/assets/logo-white.svg" 
+            alt="RTBQue Logo" 
+            width={100} 
+            height={28} 
+            priority
+            className="hover:opacity-90 transition-opacity drop-shadow-glow"
+          />
+        </Link>
         
         <div className="flex items-center">
-          <span className="text-sm text-gray-400 mr-1">방 코드:</span>
+          <span className="text-sm text-gray-400 mr-1.5">방 코드:</span>
           <button
             onClick={handleCopyRoomId}
             className={cn(
-              "px-2 py-1 rounded text-sm font-mono",
-              "bg-dark-800 hover:bg-dark-700 transition-colors",
-              "flex items-center"
+              "px-2.5 py-1.5 rounded-lg text-sm font-mono",
+              "bg-dark-800/80 hover:bg-dark-700/80 transition-colors",
+              "border border-dark-600/50 hover:border-dark-500/50",
+              "flex items-center shadow-sm"
             )}
           >
-            {roomId}
-            <svg 
-              xmlns="http://www.w3.org/2000/svg" 
-              className={cn(
-                "h-4 w-4 ml-1.5 transition-colors",
-                copied ? "text-green-500" : "text-gray-400"
-              )} 
-              fill="none" 
-              viewBox="0 0 24 24" 
-              stroke="currentColor"
-            >
-              {copied ? (
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              ) : (
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-              )}
-            </svg>
+            <span className="tracking-wider">{roomId}</span>
+            <div className={cn(
+              "ml-2 w-5 h-5 flex items-center justify-center rounded-full",
+              "transition-colors duration-300",
+              copied ? "bg-green-500/20" : "bg-dark-700/50"
+            )}>
+              <svg 
+                xmlns="http://www.w3.org/2000/svg" 
+                className={cn(
+                  "h-3.5 w-3.5 transition-colors",
+                  copied ? "text-green-400" : "text-gray-400"
+                )} 
+                fill="none" 
+                viewBox="0 0 24 24" 
+                stroke="currentColor"
+              >
+                {copied ? (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                ) : (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                )}
+              </svg>
+            </div>
           </button>
         </div>
       </div>
       
       {/* 오른쪽: 사용자 정보 및 버튼 */}
-      <div className="flex items-center space-x-2">
+      <div className="flex items-center space-x-3">
         {/* 리모컨 모드 토글 버튼 */}
         {onToggleRemoteMode && (
           <button
             onClick={onToggleRemoteMode}
             className={cn(
               "p-2 rounded-full",
-              "hover:bg-dark-700 transition-colors",
-              isRemoteMode ? "text-primary-400" : "text-gray-400"
+              "hover:bg-dark-700/70 transition-all duration-300",
+              "border border-transparent",
+              isRemoteMode ? 
+                "text-primary-400 hover:border-primary-500/30 bg-primary-500/10" : 
+                "text-gray-400 hover:text-gray-300"
             )}
             title={isRemoteMode ? "일반 모드로 전환" : "리모컨 모드로 전환"}
           >
@@ -123,9 +148,11 @@ export default function RoomHeader({
         
         {/* 사용자 이름 */}
         <div className={cn(
-          "px-3 py-1 rounded-full text-sm",
-          "bg-dark-800 text-gray-300"
+          "px-3.5 py-1.5 rounded-full text-sm",
+          "bg-dark-800/70 text-gray-300 border border-dark-600/50",
+          "shadow-sm flex items-center"
         )}>
+          <div className="w-2 h-2 rounded-full bg-green-500 mr-2"></div>
           {userName}
         </div>
         
@@ -134,7 +161,8 @@ export default function RoomHeader({
           onClick={handleLeaveRoom}
           className={cn(
             "p-2 rounded-full",
-            "text-gray-400 hover:text-red-400 hover:bg-dark-700 transition-colors"
+            "text-gray-400 hover:text-red-400 hover:bg-red-500/10 hover:border-red-500/30",
+            "transition-all duration-300 border border-transparent"
           )}
           title="방 나가기"
         >
@@ -150,21 +178,23 @@ export default function RoomHeader({
       {showConfirm && (
         <div className={cn(
           "fixed inset-0 z-50 flex items-center justify-center p-4",
-          "bg-dark-900/80 backdrop-blur-sm"
+          "bg-dark-900/80 backdrop-blur-md"
         )}>
           <div className={cn(
-            "bg-dark-800 rounded-lg shadow-xl border border-dark-700",
-            "w-full max-w-sm p-5 animate-fade-in"
+            "bg-dark-800/90 rounded-xl shadow-2xl border border-dark-700/70",
+            "w-full max-w-sm p-6 animate-fade-in",
+            "backdrop-blur-md"
           )}>
-            <h3 className="text-lg font-medium mb-3">방을 나가시겠습니까?</h3>
-            <p className="text-gray-400 mb-5">방을 나가면 현재 재생 중인 음악과 대기열이 초기화됩니다.</p>
+            <h3 className="text-lg font-medium mb-3 text-white">방을 나가시겠습니까?</h3>
+            <p className="text-gray-400 mb-6">방을 나가면 현재 재생 중인 음악과 대기열이 초기화됩니다.</p>
             
             <div className="flex justify-end space-x-3">
               <button
                 onClick={cancelLeaveRoom}
                 className={cn(
                   "px-4 py-2 rounded-lg",
-                  "bg-dark-700 hover:bg-dark-600 transition-colors"
+                  "bg-dark-700/70 hover:bg-dark-600/70 transition-all duration-300",
+                  "border border-dark-600/50"
                 )}
               >
                 취소
@@ -173,10 +203,13 @@ export default function RoomHeader({
                 onClick={confirmLeaveRoom}
                 className={cn(
                   "px-4 py-2 rounded-lg",
-                  "bg-red-600 hover:bg-red-500 transition-colors"
+                  "bg-red-600/90 hover:bg-red-500/90 transition-all duration-300",
+                  "border border-red-500/50",
+                  "relative overflow-hidden group"
                 )}
               >
-                나가기
+                <span className="relative z-10">나가기</span>
+                <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-red-400/0 via-red-400/30 to-red-400/0 transform -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
               </button>
             </div>
           </div>

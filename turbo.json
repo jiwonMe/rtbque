@@ -6,6 +6,18 @@
       "dependsOn": ["^build"],
       "outputs": ["dist/**", ".next/**", "!.next/cache/**"]
     },
+    "shared#build": {
+      "dependsOn": [],
+      "outputs": ["dist/**"]
+    },
+    "server#build": {
+      "dependsOn": ["shared#build"],
+      "outputs": ["dist/**"]
+    },
+    "client#build": {
+      "dependsOn": ["shared#build"],
+      "outputs": [".next/**", "!.next/cache/**"]
+    },
     "lint": {},
     "dev": {
       "cache": false,

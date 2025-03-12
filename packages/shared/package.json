@@ -6,7 +6,7 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && cp -r dist ../server/node_modules/shared/",
     "dev": "tsc --watch",
     "lint": "eslint src --ext .ts"
   },

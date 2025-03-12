@@ -6,6 +6,9 @@
   "scripts": {
     "dev": "turbo run dev",
     "build": "turbo run build",
+    "build:shared": "cd packages/shared && pnpm build",
+    "build:server": "cd apps/server && pnpm build",
+    "build:client": "cd apps/client && pnpm build",
     "start": "turbo run start",
     "lint": "turbo run lint",
     "format": "prettier --write \"**/*.{ts,tsx,md}\""

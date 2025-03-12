@@ -47,6 +47,33 @@ module.exports = {
           950: '#000000',
         },
       },
+      animation: {
+        'float': 'float 6s ease-in-out infinite',
+        'float-slow': 'float-slow 10s ease-in-out infinite',
+        'float-slow-reverse': 'float-slow-reverse 8s ease-in-out infinite',
+        'pulse-subtle': 'pulse-subtle 3s ease-in-out infinite',
+      },
+      keyframes: {
+        float: {
+          '0%, 100%': { transform: 'translateY(0)' },
+          '50%': { transform: 'translateY(-20px)' },
+        },
+        'float-slow': {
+          '0%, 100%': { transform: 'translateY(0)' },
+          '50%': { transform: 'translateY(-15px)' },
+        },
+        'float-slow-reverse': {
+          '0%, 100%': { transform: 'translateY(0)' },
+          '50%': { transform: 'translateY(15px)' },
+        },
+        'pulse-subtle': {
+          '0%, 100%': { opacity: '1' },
+          '50%': { opacity: '0.85' },
+        },
+      },
+      dropShadow: {
+        'glow': '0 0 8px rgba(14, 165, 233, 0.3)',
+      },
     },
   },
   plugins: [],
