@@ -19,7 +19,8 @@ export function getRoomState(roomId: string): RoomState {
       queue: [],
       isPlaying: false,
       currentTime: 0,
-      lastUpdated: Date.now()
+      lastUpdateTime: Date.now(),
+      users: []
     };
     rooms.set(roomId, room);
     console.log(`Created new room: ${roomId}`);
@@ -53,7 +54,8 @@ export function createRoom(roomName: string): Room {
     queue: [],
     isPlaying: false,
     currentTime: 0,
-    lastUpdated: Date.now()
+    lastUpdateTime: Date.now(),
+    users: []
   };
   
   rooms.set(roomId, room);

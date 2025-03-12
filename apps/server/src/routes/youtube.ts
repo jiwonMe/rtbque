@@ -60,7 +60,7 @@ router.get('/search', async (req, res) => {
     }
     
     // 비디오 ID 목록 추출
-    const videoIds = response.data.items.map(item => item.id?.videoId).filter(Boolean) as string[];
+    const videoIds = response.data.items.map((item: any) => item.id?.videoId).filter(Boolean) as string[];
     
     // 비디오 상세 정보 가져오기
     const videoDetails = await youtube.videos.list({
@@ -70,7 +70,7 @@ router.get('/search', async (req, res) => {
     });
     
     // 검색 결과 변환
-    const results: SearchResult[] = videoDetails.data.items?.map(item => {
+    const results: SearchResult[] = videoDetails.data.items?.map((item: any) => {
       // ISO 8601 형식의 지속 시간을 초로 변환
       const duration = parseDuration(item.contentDetails?.duration || 'PT0S');
       
