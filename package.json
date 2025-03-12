@@ -1,0 +1,35 @@
+{
+  "name": "rtbque",
+  "version": "1.0.0",
+  "description": "동기화된 음악 재생 웹 애플리케이션",
+  "private": true,
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "start": "turbo run start",
+    "lint": "turbo run lint",
+    "format": "prettier --write \"**/*.{ts,tsx,md}\""
+  },
+  "keywords": [
+    "music",
+    "synchronization",
+    "youtube",
+    "realtime"
+  ],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "prettier": "^3.0.0",
+    "turbo": "^1.10.0",
+    "typescript": "^5.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "packageManager": "pnpm@8.6.0",
+  "dependencies": {
+    "@types/uuid": "^10.0.0",
+    "axios": "^1.8.3",
+    "uuid": "^11.1.0"
+  }
+}
