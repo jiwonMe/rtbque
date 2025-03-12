@@ -6,7 +6,7 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "tsc && rm -rf ../../apps/server/node_modules/shared/ ../../apps/client/node_modules/shared/ && mkdir -p ../../apps/server/node_modules/shared/ ../../apps/client/node_modules/shared/ && cp -r dist/* ../../apps/server/node_modules/shared/ && cp -r dist/* ../../apps/client/node_modules/shared/",
+    "build": "rm -rf dist && find src -name \"*.js\" -delete && tsc && mkdir -p ../../apps/server/node_modules/shared/ ../../apps/client/node_modules/shared/ && cp -r package.json ../../apps/server/node_modules/shared/ && cp -r package.json ../../apps/client/node_modules/shared/ && cp -r dist ../../apps/server/node_modules/shared/ || true && cp -r dist ../../apps/client/node_modules/shared/ || true",
     "dev": "tsc --watch",
     "lint": "eslint src --ext .ts"
   },
