@@ -3,16 +3,21 @@
 import { useState } from 'react';
 import { SearchResult } from 'shared';
 import { formatTime, cn } from '@/lib/utils';
+import { useSocket } from '@/hooks/useSocket';
+import { SocketEvents } from 'shared';
 
 interface SearchPanelProps {
-  onAddToQueue: (video: SearchResult) => void;
+  onAddToQueue?: (video: SearchResult) => void;
+  roomId?: string;
+  onClose?: () => void;
 }
 
-export default function SearchPanel({ onAddToQueue }: SearchPanelProps) {
+export default function SearchPanel({ onAddToQueue, roomId, onClose }: SearchPanelProps) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SearchResult[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { emit } = useSocket();
   
   // 검색 핸들러
   const handleSearch = async (e: React.FormEvent) => {
@@ -44,7 +49,31 @@ export default function SearchPanel({ onAddToQueue }: SearchPanelProps) {
   // 비디오 추가 핸들러
   const handleAddVideo = (result: SearchResult) => {
     console.log('비디오 추가 요청:', result);
-    onAddToQueue(result);
+    
+    // 리모컨 모드에서는 소켓 이벤트를 직접 발송
+    if (roomId) {
+      const videoToAdd = {
+        id: crypto.randomUUID(),
+        title: result.title,
+        thumbnail: result.thumbnail,
+        duration: result.duration,
+        youtubeId: result.youtubeId,
+        addedBy: '' // 서버에서 처리됨
+      };
+      
+      // 서버에 비디오 객체 직접 전송
+      emit(SocketEvents.ADD_TO_QUEUE, videoToAdd);
+      
+      // 검색 패널 닫기 (리모컨 모드에서)
+      if (onClose) {
+        onClose();
+      }
+    } 
+    // 일반 모드에서는 콜백 사용
+    else if (onAddToQueue) {
+      onAddToQueue(result);
+    }
+    
     // 검색 결과 초기화
     setResults([]);
     setQuery('');

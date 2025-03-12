@@ -10,6 +10,8 @@ import VideoPlayer, { VideoPlayerHandle } from '@/components/VideoPlayer';
 import VideoQueue from '@/components/VideoQueue';
 import SearchPanel from '@/components/SearchPanel';
 import UserList from '@/components/UserList';
+import RemoteControl from '@/components/RemoteControl';
+import { useIsMobile } from '@/hooks/useIsMobile';
 import { v4 as uuidv4 } from 'uuid';
 
 // 방 상태 업데이트를 위한 타입 정의
@@ -28,6 +30,8 @@ export default function RoomPage() {
   const searchParams = useSearchParams();
   const roomId = params.id as string;
   const userName = searchParams.get('name') || '';
+  const remoteParam = searchParams.get('remote');
+  const isMobile = useIsMobile();
   
   const { 
     socket, 
@@ -63,11 +67,20 @@ export default function RoomPage() {
   const joinTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const videoPlayerRef = useRef<VideoPlayerHandle>(null);
   
+  // 리모컨 모드 여부 결정 (URL 파라미터 또는 모바일 환경)
+  const [isRemoteMode, setIsRemoteMode] = useState(false);
+  
   // roomId나 userName이 변경되면 ref 업데이트
   useEffect(() => {
     roomIdRef.current = roomId;
     userNameRef.current = userName;
   }, [roomId, userName]);
+  
+  // 컴포넌트 마운트 시 리모컨 모드 설정
+  useEffect(() => {
+    // URL 파라미터에 remote=true가 있거나 모바일 환경이면 리모컨 모드 활성화
+    setIsRemoteMode(remoteParam === 'true' || isMobile);
+  }, [remoteParam, isMobile]);
   
   // 방 참가 함수
   const joinRoom = useCallback(() => {
@@ -409,16 +422,9 @@ export default function RoomPage() {
   const handleVideoEnded = useCallback(() => {
     if (!socket || !isConnected) return;
     
-    console.log('비디오 종료 이벤트 발생');
+    // 서버에 비디오 종료 알림
     emit(SocketEvents.VIDEO_ENDED);
-    
-    // 큐에 다음 비디오가 있는지 확인
-    if (room?.queue && room.queue.length > 0) {
-      console.log('큐에 다음 비디오가 있습니다. 서버에서 자동으로 처리합니다.');
-    } else {
-      console.log('큐에 다음 비디오가 없습니다. 재생이 중지됩니다.');
-    }
-  }, [socket, isConnected, emit, room?.queue]);
+  }, [socket, isConnected, emit]);
   
   // 시간 동기화 요청 함수
   const requestTimeSync = useCallback(() => {
@@ -469,16 +475,17 @@ export default function RoomPage() {
     };
     
     console.log('서버로 전송할 비디오 객체:', newVideo);
+    // 서버에 비디오 객체 직접 전송
     socket.emit(SocketEvents.ADD_TO_QUEUE, newVideo);
   }, [socket]);
   
-  // 큐에서 비디오 제거 이벤트 핸들러
+  // 비디오 제거 핸들러
   const handleRemoveFromQueue = useCallback((videoId: string) => {
-    if (!socket || !hasJoinedRef.current) return;
+    if (!socket || !isConnected) return;
     
-    console.log('큐에서 비디오 제거 이벤트:', videoId);
-    socket.emit(SocketEvents.REMOVE_FROM_QUEUE, { videoId });
-  }, [socket]);
+    // 서버에 비디오 제거 요청
+    emit(SocketEvents.REMOVE_FROM_QUEUE, { videoId });
+  }, [socket, isConnected, emit]);
   
   // 비디오 건너뛰기 함수
   const handleSkip = useCallback(() => {
@@ -488,139 +495,106 @@ export default function RoomPage() {
     emit(SocketEvents.SKIP_CURRENT);
   }, [socket, isConnected, emit]);
   
+  // 리모컨 모드 토글 핸들러
+  const toggleRemoteMode = () => {
+    setIsRemoteMode(!isRemoteMode);
+  };
+  
+  // 비디오 추가 핸들러
+  const handleAddVideo = useCallback((video: SearchResult) => {
+    if (!socket || !isConnected) return;
+    
+    // 비디오 객체 생성
+    const newVideo: Video = {
+      id: uuidv4(),
+      title: video.title,
+      thumbnail: video.thumbnail,
+      duration: video.duration,
+      youtubeId: video.youtubeId,
+      addedBy: userName
+    };
+    
+    // 서버에 비디오 객체 직접 전송
+    emit(SocketEvents.ADD_TO_QUEUE, newVideo);
+  }, [socket, isConnected, emit, userName]);
+  
   if (isLoading) {
     return (
-      <div className="min-h-screen flex flex-col bg-gradient-to-br from-dark-900 to-dark-800">
-        {/* 헤더 */}
-        <RoomHeader roomId={roomId} roomName={room?.name || '로딩 중...'} />
-        
-        {/* 메인 콘텐츠 */}
-        <div className="flex-1 container mx-auto px-4 py-6">
-          <div className="flex items-center justify-center h-full">
-            <div className="text-center">
-              <div className="w-16 h-16 border-4 border-primary-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-              <p className="text-lg text-gray-300">방 정보를 불러오는 중...</p>
-            </div>
-          </div>
+      <div className="flex items-center justify-center min-h-screen bg-dark-900 text-white">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-500 mx-auto mb-4"></div>
+          <p className="text-lg">방에 연결 중...</p>
         </div>
-        
-        {/* 푸터 */}
-        <footer className="bg-dark-900/80 border-t border-dark-700 py-4">
-          <div className="container mx-auto px-4 text-center text-sm text-gray-500">
-            <p>RTBQue - 실시간 음악 공유 플랫폼</p>
-          </div>
-        </footer>
       </div>
     );
   }
   
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-br from-dark-900 to-dark-800">
-      {/* 헤더 */}
-      <RoomHeader roomId={roomId} roomName={room?.name || '로딩 중...'} />
+    <div className="flex flex-col h-screen bg-dark-900 text-white overflow-hidden">
+      <RoomHeader 
+        roomId={roomId} 
+        userName={userName} 
+        isRemoteMode={isRemoteMode}
+        onToggleRemoteMode={toggleRemoteMode}
+      />
       
-      {/* 메인 콘텐츠 */}
-      <div className="flex-1 container mx-auto px-4 py-6">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* 비디오 플레이어 영역 */}
-          <div className="lg:col-span-8 space-y-6">
+      {isRemoteMode ? (
+        // 리모컨 모드 UI
+        <RemoteControl
+          roomId={roomId}
+          currentVideo={room?.currentVideo || null}
+          isPlaying={room?.isPlaying || false}
+          currentTime={room?.currentTime || 0}
+          queue={room?.queue || []}
+          onPlay={handlePlay}
+          onPause={handlePause}
+          onSeek={handleSeek}
+          onSkip={handleSkip}
+        />
+      ) : (
+        // 일반 모드 UI
+        <div className="flex flex-1 overflow-hidden">
+          {/* 메인 콘텐츠 영역 */}
+          <div className="flex flex-col flex-1 overflow-hidden">
             {/* 비디오 플레이어 */}
-            <div className="bg-dark-900/50 rounded-lg overflow-hidden border border-dark-700 shadow-lg">
+            <div className="relative w-full bg-dark-950">
               <VideoPlayer
                 ref={videoPlayerRef}
                 video={room?.currentVideo || null}
                 isPlaying={room?.isPlaying || false}
                 currentTime={room?.currentTime || 0}
-                onPlay={() => {
-                  if (!isUserControlling) return;
-                  emit(SocketEvents.PLAY, {
-                    currentTime: videoPlayerRef.current?.getCurrentTime() || 0
-                  });
-                }}
-                onPause={() => {
-                  if (!isUserControlling) return;
-                  emit(SocketEvents.PAUSE, {
-                    currentTime: videoPlayerRef.current?.getCurrentTime() || 0
-                  });
-                }}
-                onSeek={(currentTime) => {
-                  if (!isUserControlling) return;
-                  emit(SocketEvents.SEEK, {
-                    currentTime
-                  });
-                }}
-                onSkip={() => {
-                  emit(SocketEvents.SKIP_CURRENT);
-                }}
-                onEnded={() => {
-                  emit(SocketEvents.VIDEO_ENDED);
-                }}
+                onPlay={handlePlay}
+                onPause={handlePause}
+                onSeek={handleSeek}
+                onSkip={handleSkip}
+                onEnded={handleVideoEnded}
               />
             </div>
             
-            {/* 비디오 대기열 */}
-            <VideoQueue
-              currentVideo={room?.currentVideo || null}
-              queue={room?.queue || []}
-              onRemove={(videoId) => {
-                emit(SocketEvents.REMOVE_FROM_QUEUE, { videoId });
-              }}
-              onSkip={() => {
-                emit(SocketEvents.SKIP_CURRENT);
-              }}
-            />
+            {/* 대기열 */}
+            <div className="flex-1 overflow-hidden">
+              <VideoQueue
+                queue={room?.queue || []}
+                onRemoveVideo={handleRemoveFromQueue}
+                onSkip={handleSkip}
+              />
+            </div>
           </div>
           
           {/* 사이드바 */}
-          <div className="lg:col-span-4 space-y-6">
-            {/* 참가자 목록 */}
-            <UserList users={users} />
+          <div className="w-80 border-l border-dark-700 flex flex-col overflow-hidden">
+            {/* 사용자 목록 */}
+            <div className="h-1/3 border-b border-dark-700 overflow-y-auto">
+              <UserList users={users} />
+            </div>
             
             {/* 검색 패널 */}
-            <SearchPanel
-              onAddToQueue={(video) => {
-                const videoToAdd: Video = {
-                  id: uuidv4(),
-                  title: video.title,
-                  thumbnail: video.thumbnail || `https://img.youtube.com/vi/${video.youtubeId}/mqdefault.jpg`,
-                  duration: video.duration,
-                  youtubeId: video.youtubeId,
-                  addedBy: userName
-                };
-                
-                emit(SocketEvents.ADD_TO_QUEUE, videoToAdd);
-              }}
-            />
-            
-            {/* 네트워크 상태 정보 */}
-            <div className="bg-dark-800/80 backdrop-blur-sm rounded-lg overflow-hidden border border-dark-700 shadow-lg">
-              <div className="bg-dark-900/50 px-4 py-3 border-b border-dark-700">
-                <h2 className="text-base font-semibold text-gray-200">연결 상태</h2>
-              </div>
-              <div className="p-4 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-400">연결 상태:</span>
-                  <span className={`text-sm font-medium flex items-center ${isConnected ? 'text-green-400' : 'text-red-400'}`}>
-                    <span className={`inline-block w-2 h-2 rounded-full mr-1.5 ${isConnected ? 'bg-green-400' : 'bg-red-400'}`}></span>
-                    {isConnected ? '연결됨' : '연결 끊김'}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-400">네트워크 지연:</span>
-                  <span className="text-sm font-medium text-gray-300">{networkLatency}ms</span>
-                </div>
-              </div>
+            <div className="flex-1 overflow-hidden">
+              <SearchPanel onAddToQueue={handleAddVideo} />
             </div>
           </div>
         </div>
-      </div>
-      
-      {/* 푸터 */}
-      <footer className="bg-dark-900/80 border-t border-dark-700 py-4">
-        <div className="container mx-auto px-4 text-center text-sm text-gray-500">
-          <p>RTBQue - 실시간 음악 공유 플랫폼</p>
-        </div>
-      </footer>
+      )}
     </div>
   );
 } 

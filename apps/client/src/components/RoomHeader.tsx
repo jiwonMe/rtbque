@@ -3,16 +3,27 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
+import { useIsMobile } from '@/hooks/useIsMobile';
 
 interface RoomHeaderProps {
   roomId: string;
-  roomName: string;
+  roomName?: string;
+  userName: string;
+  isRemoteMode?: boolean;
+  onToggleRemoteMode?: () => void;
 }
 
-export default function RoomHeader({ roomId, roomName }: RoomHeaderProps) {
+export default function RoomHeader({ 
+  roomId, 
+  roomName = '음악 방', 
+  userName,
+  isRemoteMode = false,
+  onToggleRemoteMode
+}: RoomHeaderProps) {
   const router = useRouter();
   const [copied, setCopied] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const isMobile = useIsMobile();
   
   // 방 코드 복사 핸들러
   const handleCopyRoomId = () => {
@@ -39,75 +50,131 @@ export default function RoomHeader({ roomId, roomName }: RoomHeaderProps) {
   };
   
   return (
-    <header className="bg-gradient-to-r from-dark-900 to-dark-800 border-b border-dark-700 shadow-md">
-      <div className="container mx-auto px-4 py-3">
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-          {/* 방 정보 */}
-          <div className="flex items-center">
-            <div className={cn(
-              "w-10 h-10 rounded-full flex items-center justify-center mr-3",
-              "bg-gradient-to-br from-primary-500 to-primary-700 text-white font-bold text-lg"
-            )}>
-              {roomName.charAt(0).toUpperCase()}
-            </div>
-            <div>
-              <h1 className="text-xl font-bold">{roomName}</h1>
-              <div className="flex items-center mt-1">
-                <span className="text-xs text-gray-400 mr-2">방 코드:</span>
-                <div className="bg-dark-700 px-2 py-1 rounded text-xs font-mono tracking-wider">
-                  {roomId}
-                </div>
-                <button
-                  onClick={handleCopyRoomId}
-                  className={cn(
-                    "ml-2 text-xs px-2 py-1 rounded-md transition-all",
-                    copied 
-                      ? "bg-green-600 text-white" 
-                      : "bg-dark-700 text-gray-300 hover:bg-dark-600"
-                  )}
-                >
-                  {copied ? '복사됨!' : '복사'}
-                </button>
-              </div>
-            </div>
-          </div>
-          
-          {/* 액션 버튼 */}
-          <div className="flex items-center space-x-3">
-            <button
-              onClick={handleLeaveRoom}
+    <header className={cn(
+      "bg-dark-900 border-b border-dark-700",
+      "flex items-center justify-between px-4 py-2"
+    )}>
+      {/* 왼쪽: 로고 및 방 정보 */}
+      <div className="flex items-center">
+        <h1 className={cn(
+          "text-xl font-bold mr-3",
+          "bg-clip-text text-transparent bg-gradient-to-r from-primary-400 to-secondary-400"
+        )}>
+          RTBQue
+        </h1>
+        
+        <div className="flex items-center">
+          <span className="text-sm text-gray-400 mr-1">방 코드:</span>
+          <button
+            onClick={handleCopyRoomId}
+            className={cn(
+              "px-2 py-1 rounded text-sm font-mono",
+              "bg-dark-800 hover:bg-dark-700 transition-colors",
+              "flex items-center"
+            )}
+          >
+            {roomId}
+            <svg 
+              xmlns="http://www.w3.org/2000/svg" 
               className={cn(
-                "flex items-center px-3 py-2 rounded-md text-sm font-medium transition-all",
-                "bg-dark-700 hover:bg-dark-600 text-gray-300",
-                "border border-dark-600 hover:border-dark-500"
-              )}
+                "h-4 w-4 ml-1.5 transition-colors",
+                copied ? "text-green-500" : "text-gray-400"
+              )} 
+              fill="none" 
+              viewBox="0 0 24 24" 
+              stroke="currentColor"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-              </svg>
-              방 나가기
-            </button>
-          </div>
+              {copied ? (
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              ) : (
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+              )}
+            </svg>
+          </button>
         </div>
       </div>
       
-      {/* 방 나가기 확인 모달 */}
+      {/* 오른쪽: 사용자 정보 및 버튼 */}
+      <div className="flex items-center space-x-2">
+        {/* 리모컨 모드 토글 버튼 */}
+        {onToggleRemoteMode && (
+          <button
+            onClick={onToggleRemoteMode}
+            className={cn(
+              "p-2 rounded-full",
+              "hover:bg-dark-700 transition-colors",
+              isRemoteMode ? "text-primary-400" : "text-gray-400"
+            )}
+            title={isRemoteMode ? "일반 모드로 전환" : "리모컨 모드로 전환"}
+          >
+            {isRemoteMode ? (
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                <line x1="8" y1="21" x2="16" y2="21"></line>
+                <line x1="12" y1="17" x2="12" y2="21"></line>
+              </svg>
+            ) : (
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M10 2L3 14h9l-1 8 7-12h-9l1-8z"></path>
+              </svg>
+            )}
+          </button>
+        )}
+        
+        {/* 사용자 이름 */}
+        <div className={cn(
+          "px-3 py-1 rounded-full text-sm",
+          "bg-dark-800 text-gray-300"
+        )}>
+          {userName}
+        </div>
+        
+        {/* 나가기 버튼 */}
+        <button
+          onClick={handleLeaveRoom}
+          className={cn(
+            "p-2 rounded-full",
+            "text-gray-400 hover:text-red-400 hover:bg-dark-700 transition-colors"
+          )}
+          title="방 나가기"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+            <polyline points="16 17 21 12 16 7"></polyline>
+            <line x1="21" y1="12" x2="9" y2="12"></line>
+          </svg>
+        </button>
+      </div>
+      
+      {/* 나가기 확인 모달 */}
       {showConfirm && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 animate-fade-in">
-          <div className="bg-dark-800 rounded-lg p-6 max-w-sm w-full mx-4 shadow-2xl border border-dark-700">
-            <h3 className="text-lg font-bold mb-4">방을 나가시겠습니까?</h3>
-            <p className="text-gray-400 mb-6">방을 나가면 현재 재생 중인 음악과 대기열이 초기화됩니다.</p>
+        <div className={cn(
+          "fixed inset-0 z-50 flex items-center justify-center p-4",
+          "bg-dark-900/80 backdrop-blur-sm"
+        )}>
+          <div className={cn(
+            "bg-dark-800 rounded-lg shadow-xl border border-dark-700",
+            "w-full max-w-sm p-5 animate-fade-in"
+          )}>
+            <h3 className="text-lg font-medium mb-3">방을 나가시겠습니까?</h3>
+            <p className="text-gray-400 mb-5">방을 나가면 현재 재생 중인 음악과 대기열이 초기화됩니다.</p>
             
             <div className="flex justify-end space-x-3">
               <button
                 onClick={cancelLeaveRoom}
-                className="px-4 py-2 rounded-md bg-dark-700 hover:bg-dark-600 transition-colors"
+                className={cn(
+                  "px-4 py-2 rounded-lg",
+                  "bg-dark-700 hover:bg-dark-600 transition-colors"
+                )}
               >
                 취소
               </button>
               <button
                 onClick={confirmLeaveRoom}
-                className="px-4 py-2 rounded-md bg-red-600 hover:bg-red-700 transition-colors"
+                className={cn(
+                  "px-4 py-2 rounded-lg",
+                  "bg-red-600 hover:bg-red-500 transition-colors"
+                )}
               >
                 나가기
               </button>

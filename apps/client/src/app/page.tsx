@@ -3,12 +3,22 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { generateRandomString, cn } from '@/lib/utils';
+import { useIsMobile } from '@/hooks/useIsMobile';
 
 export default function Home() {
   const router = useRouter();
   const [userName, setUserName] = useState('');
   const [roomId, setRoomId] = useState('');
   const [isCreating, setIsCreating] = useState(false);
+  const [remoteMode, setRemoteMode] = useState(false);
+  const isMobile = useIsMobile();
+
+  // 컴포넌트 마운트 시 모바일 환경이면 기본적으로 리모컨 모드 활성화
+  useState(() => {
+    if (isMobile) {
+      setRemoteMode(true);
+    }
+  });
 
   // 방 참가 핸들러
   const handleJoinRoom = (e: React.FormEvent) => {
@@ -24,8 +34,8 @@ export default function Home() {
       return;
     }
     
-    // 방 페이지로 이동
-    router.push(`/room/${roomId}?name=${encodeURIComponent(userName)}`);
+    // 방 페이지로 이동 (리모컨 모드 파라미터 추가)
+    router.push(`/room/${roomId}?name=${encodeURIComponent(userName)}${remoteMode ? '&remote=true' : ''}`);
   };
 
   // 방 생성 핸들러
@@ -40,8 +50,13 @@ export default function Home() {
     // 랜덤 방 코드 생성
     const newRoomId = generateRandomString(6).toUpperCase();
     
-    // 방 페이지로 이동
-    router.push(`/room/${newRoomId}?name=${encodeURIComponent(userName)}`);
+    // 방 페이지로 이동 (리모컨 모드 파라미터 추가)
+    router.push(`/room/${newRoomId}?name=${encodeURIComponent(userName)}${remoteMode ? '&remote=true' : ''}`);
+  };
+
+  // 리모컨 모드 토글 핸들러
+  const toggleRemoteMode = () => {
+    setRemoteMode(!remoteMode);
   };
 
   return (
@@ -105,6 +120,20 @@ export default function Home() {
                   />
                 </div>
                 
+                {/* 리모컨 모드 체크박스 */}
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id="create-remoteMode"
+                    checked={remoteMode}
+                    onChange={toggleRemoteMode}
+                    className="h-4 w-4 text-primary-500 rounded border-dark-600 focus:ring-primary-500 bg-dark-700"
+                  />
+                  <label htmlFor="create-remoteMode" className="ml-2 block text-sm text-gray-300">
+                    리모컨 모드 {isMobile && "(모바일에 최적화)"}
+                  </label>
+                </div>
+                
                 <button
                   type="submit"
                   className={cn(
@@ -149,6 +178,20 @@ export default function Home() {
                     maxLength={6}
                     required
                   />
+                </div>
+                
+                {/* 리모컨 모드 체크박스 */}
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id="join-remoteMode"
+                    checked={remoteMode}
+                    onChange={toggleRemoteMode}
+                    className="h-4 w-4 text-primary-500 rounded border-dark-600 focus:ring-primary-500 bg-dark-700"
+                  />
+                  <label htmlFor="join-remoteMode" className="ml-2 block text-sm text-gray-300">
+                    리모컨 모드 {isMobile && "(모바일에 최적화)"}
+                  </label>
                 </div>
                 
                 <button
