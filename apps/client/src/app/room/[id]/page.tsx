@@ -553,11 +553,11 @@ export default function RoomPage() {
         />
       ) : (
         // 일반 모드 UI
-        <div className="flex flex-1 overflow-hidden">
+        <div className="flex flex-1 overflow-hidden p-4">
           {/* 메인 콘텐츠 영역 */}
-          <div className="flex flex-col flex-1 overflow-hidden">
+          <div className="flex flex-col flex-1 overflow-hidden pr-4">
             {/* 비디오 플레이어 */}
-            <div className="relative w-full bg-dark-950">
+            <div className="relative w-full bg-dark-950 rounded-lg overflow-hidden shadow-lg mb-4">
               <VideoPlayer
                 ref={videoPlayerRef}
                 video={room?.currentVideo || null}
@@ -572,7 +572,7 @@ export default function RoomPage() {
             </div>
             
             {/* 대기열 */}
-            <div className="flex-1 overflow-hidden">
+            <div className="flex-1 overflow-hidden bg-dark-800/50 rounded-lg border border-dark-700">
               <VideoQueue
                 queue={room?.queue || []}
                 onRemoveVideo={handleRemoveFromQueue}
@@ -582,14 +582,14 @@ export default function RoomPage() {
           </div>
           
           {/* 사이드바 */}
-          <div className="w-80 border-l border-dark-700 flex flex-col overflow-hidden">
+          <div className="w-96 border-l border-dark-700 flex flex-col overflow-hidden bg-dark-800/30 rounded-lg ml-2">
             {/* 사용자 목록 */}
-            <div className="h-1/3 border-b border-dark-700 overflow-y-auto">
+            <div className="h-1/3 border-b border-dark-700 overflow-y-auto p-2">
               <UserList users={users} />
             </div>
             
             {/* 검색 패널 */}
-            <div className="flex-1 overflow-hidden">
+            <div className="flex-1 overflow-hidden p-2">
               <SearchPanel onAddToQueue={handleAddVideo} />
             </div>
           </div>

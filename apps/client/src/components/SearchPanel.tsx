@@ -48,78 +48,63 @@ export default function SearchPanel({ onAddToQueue, roomId, onClose }: SearchPan
   
   // 비디오 추가 핸들러
   const handleAddVideo = (result: SearchResult) => {
-    console.log('비디오 추가 요청:', result);
-    
-    // 리모컨 모드에서는 소켓 이벤트를 직접 발송
-    if (roomId) {
-      const videoToAdd = {
-        id: crypto.randomUUID(),
+    if (onAddToQueue) {
+      onAddToQueue(result);
+      
+      // 모달 닫기 (모달로 사용될 때)
+      if (onClose) {
+        onClose();
+      }
+    } else if (roomId) {
+      // 소켓 이벤트로 직접 전송 (roomId가 제공된 경우)
+      emit(SocketEvents.ADD_TO_QUEUE, {
+        id: '', // 서버에서 생성
         title: result.title,
         thumbnail: result.thumbnail,
         duration: result.duration,
         youtubeId: result.youtubeId,
-        addedBy: '' // 서버에서 처리됨
-      };
+        addedBy: '' // 서버에서 설정
+      });
       
-      // 서버에 비디오 객체 직접 전송
-      emit(SocketEvents.ADD_TO_QUEUE, videoToAdd);
-      
-      // 검색 패널 닫기 (리모컨 모드에서)
+      // 모달 닫기 (모달로 사용될 때)
       if (onClose) {
         onClose();
       }
-    } 
-    // 일반 모드에서는 콜백 사용
-    else if (onAddToQueue) {
-      onAddToQueue(result);
     }
-    
-    // 검색 결과 초기화
-    setResults([]);
-    setQuery('');
   };
   
   return (
-    <div className="bg-dark-800/80 backdrop-blur-sm rounded-lg overflow-hidden border border-dark-700 shadow-lg">
+    <div className="flex flex-col h-full">
       {/* 헤더 */}
-      <div className="bg-dark-900/50 px-4 py-3 border-b border-dark-700">
-        <h2 className="text-base font-semibold text-gray-200">음악 검색</h2>
-      </div>
-      
-      {/* 검색 폼 */}
-      <div className="p-3">
-        <form onSubmit={handleSearch} className="relative">
+      <div className="px-5 py-4 border-b border-dark-700 mb-2">
+        <h2 className="text-base font-semibold text-gray-200 mb-3">음악 검색</h2>
+        
+        {/* 검색 폼 */}
+        <form onSubmit={handleSearch} className="flex">
           <input
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="노래 제목, 아티스트 검색..."
             className={cn(
-              "w-full px-4 py-3 pr-12 rounded-lg",
+              "flex-1 px-4 py-2 rounded-l-lg",
               "bg-dark-700 border border-dark-600",
-              "focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent",
-              "transition-all placeholder-gray-500"
+              "focus:outline-none focus:ring-1 focus:ring-primary-500 focus:border-primary-500"
             )}
           />
           <button
             type="submit"
             className={cn(
-              "absolute right-2 top-1/2 transform -translate-y-1/2",
-              "p-2 rounded-md text-gray-400 hover:text-white",
-              "hover:bg-dark-600 transition-colors",
-              isLoading ? "opacity-50 cursor-not-allowed" : ""
+              "px-4 py-2 rounded-r-lg",
+              "bg-primary-600 hover:bg-primary-500 transition-colors",
+              "text-white font-medium"
             )}
             disabled={isLoading}
           >
             {isLoading ? (
-              <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
+              <div className="w-5 h-5 border-2 border-t-transparent border-white rounded-full animate-spin"></div>
             ) : (
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
+              "검색"
             )}
           </button>
         </form>
@@ -127,25 +112,20 @@ export default function SearchPanel({ onAddToQueue, roomId, onClose }: SearchPan
       
       {/* 에러 메시지 */}
       {error && (
-        <div className="px-4 py-2 bg-red-900/30 border-y border-red-800">
-          <p className="text-sm text-red-300 flex items-center">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            {error}
-          </p>
+        <div className="bg-red-900/30 border border-red-800 text-red-200 px-4 py-3 rounded-md mx-3 mb-3">
+          {error}
         </div>
       )}
       
       {/* 검색 결과 */}
-      <div className="p-2">
+      <div className="p-3 flex-1 overflow-y-auto">
         {results.length > 0 ? (
-          <div className="space-y-1 max-h-96 overflow-y-auto pr-1">
+          <div className="space-y-2 max-h-full overflow-y-auto pr-1">
             {results.map((video) => (
               <div
                 key={video.id}
                 className={cn(
-                  "flex items-center p-2 rounded-md",
+                  "flex items-center p-3 rounded-md",
                   "bg-dark-700/50 hover:bg-dark-700 transition-all hover-scale"
                 )}
               >
@@ -175,22 +155,27 @@ export default function SearchPanel({ onAddToQueue, roomId, onClose }: SearchPan
               </div>
             ))}
           </div>
-        ) : !isLoading && query.trim() === '' ? (
-          <div className="text-center py-8 text-gray-500">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 mx-auto mb-2 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-            <p className="text-sm mb-1">원하는 음악을 검색해보세요</p>
-            <p className="text-xs">노래 제목, 아티스트 이름으로 검색할 수 있습니다</p>
+        ) : (
+          <div className="flex flex-col items-center justify-center h-full p-6 text-gray-500">
+            {isLoading ? (
+              <div className="w-8 h-8 border-4 border-t-transparent border-primary-500 rounded-full animate-spin mb-4"></div>
+            ) : query ? (
+              <>
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mb-3 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                <p>검색 결과가 없습니다</p>
+              </>
+            ) : (
+              <>
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mb-3 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+                </svg>
+                <p>음악을 검색해보세요</p>
+              </>
+            )}
           </div>
-        ) : !isLoading && results.length === 0 && query.trim() !== '' ? (
-          <div className="text-center py-8 text-gray-500">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 mx-auto mb-2 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <p className="text-sm">검색 결과가 없습니다</p>
-          </div>
-        ) : null}
+        )}
       </div>
     </div>
   );

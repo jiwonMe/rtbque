@@ -62,6 +62,34 @@ const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(({
   // 사용자 조작 여부를 추적하는 상태 변수 추가
   const hasUserInteractedRef = useRef<boolean>(false);
   
+  // 전역 사용자 조작 감지를 위한 이벤트 리스너 추가
+  useEffect(() => {
+    // 사용자 조작 감지 함수
+    const handleUserInteraction = () => {
+      if (!hasUserInteractedRef.current) {
+        console.log('최초 사용자 조작 감지됨');
+        hasUserInteractedRef.current = true;
+        
+        // 이벤트 리스너 제거 (최초 한 번만 감지하면 됨)
+        window.removeEventListener('click', handleUserInteraction);
+        window.removeEventListener('keydown', handleUserInteraction);
+        window.removeEventListener('touchstart', handleUserInteraction);
+      }
+    };
+    
+    // 전역 이벤트 리스너 등록
+    window.addEventListener('click', handleUserInteraction);
+    window.addEventListener('keydown', handleUserInteraction);
+    window.addEventListener('touchstart', handleUserInteraction);
+    
+    // 컴포넌트 언마운트 시 이벤트 리스너 제거
+    return () => {
+      window.removeEventListener('click', handleUserInteraction);
+      window.removeEventListener('keydown', handleUserInteraction);
+      window.removeEventListener('touchstart', handleUserInteraction);
+    };
+  }, []);
+  
   // 비디오 종료 시 중복 호출 방지를 위한 변수 추가
   const isSkippingRef = useRef<boolean>(false);
   const skipTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -134,24 +162,25 @@ const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(({
         hasUserInteracted: hasUserInteractedRef.current
       });
       
-      // 플레이어가 이미 초기화되어 있고 비디오가 재생 중이고 사용자 조작이 없었을 때만 다이얼로그 표시
-      if (playerRef.current && isPlaying && currentTime > 0 && !initialSyncDoneRef.current && !hasUserInteractedRef.current) {
-        // 다이얼로그 표시 시간 설정
-        setSyncDialogTime(currentTime);
-        syncDialogTimeRef.current = currentTime;
-        syncStartTimeRef.current = Date.now();
-        setShowSyncDialog(true);
-      } else if (playerRef.current && isPlaying && currentTime > 0 && !initialSyncDoneRef.current && hasUserInteractedRef.current) {
+      // 플레이어가 이미 초기화되어 있고 비디오가 재생 중이고 초기화가 안 되었을 때
+      if (playerRef.current && isPlaying && currentTime > 0 && !initialSyncDoneRef.current) {
         // 사용자 조작이 있었다면 다이얼로그 없이 바로 재생
-        console.log('사용자 조작이 있었으므로 다이얼로그 없이 바로 재생');
-        try {
-          if (playerRef.current) {
-            playerRef.current.seekTo(currentTime, true);
-            playerRef.current.playVideo();
-            initialSyncDoneRef.current = true;
-          }
-        } catch (error) {
-          console.error('비디오 재생 오류:', error);
+        if (hasUserInteractedRef.current) {
+          console.log('사용자 조작이 있었으므로 다이얼로그 없이 바로 재생');
+          setTimeout(() => {
+            if (playerRef.current) {
+              console.log('초기 재생 시작');
+              playerRef.current.playVideo();
+              // 초기화 완료 표시
+              initialSyncDoneRef.current = true;
+            }
+          }, 300); // 0.3초 지연 (성능 개선)
+        } else {
+          // 사용자 조작이 없었다면 다이얼로그 표시
+          setSyncDialogTime(currentTime);
+          syncDialogTimeRef.current = currentTime;
+          syncStartTimeRef.current = Date.now();
+          setShowSyncDialog(true);
         }
       }
     } else {
@@ -214,15 +243,28 @@ const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(({
         pendingSeekRef.current = null;
       }
       
-      // 비디오가 재생 중이고 초기화가 안 되었고 사용자 조작이 없었을 때만 다이얼로그 표시
-      if (isPlaying && currentTime > 0 && !initialSyncDoneRef.current && !hasUserInteractedRef.current) {
-        // 다이얼로그 표시 시간 설정
-        setSyncDialogTime(currentTime);
-        syncDialogTimeRef.current = currentTime;
-        syncStartTimeRef.current = Date.now();
-        setShowSyncDialog(true);
+      // 비디오가 재생 중이고 초기화가 안 되었을 때
+      if (isPlaying && currentTime > 0 && !initialSyncDoneRef.current) {
+        // 사용자 조작이 있었다면 다이얼로그 없이 바로 재생
+        if (hasUserInteractedRef.current) {
+          console.log('사용자 조작이 있었으므로 다이얼로그 없이 바로 재생');
+          setTimeout(() => {
+            if (playerRef.current) {
+              console.log('초기 재생 시작');
+              playerRef.current.playVideo();
+              // 초기화 완료 표시
+              initialSyncDoneRef.current = true;
+            }
+          }, 300); // 0.3초 지연 (성능 개선)
+        } else {
+          // 사용자 조작이 없었다면 다이얼로그 표시
+          setSyncDialogTime(currentTime);
+          syncDialogTimeRef.current = currentTime;
+          syncStartTimeRef.current = Date.now();
+          setShowSyncDialog(true);
+        }
       } else {
-        // 재생 중이 아니거나 이미 초기화되었거나 사용자 조작이 있었으면 바로 상태 적용
+        // 재생 중이 아니거나 이미 초기화되었으면 바로 상태 적용
         setTimeout(() => {
           if (playerRef.current) {
             if (isPlaying) {
@@ -581,15 +623,27 @@ const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(({
             playerRef.current.unMute();
           }
           
-          // 비디오가 재생 중이고 초기화가 안 되었고 사용자 조작이 없었을 때만 다이얼로그 표시
-          if (isPlaying && currentTime > 0 && !initialSyncDoneRef.current && !hasUserInteractedRef.current) {
-            // 다이얼로그 표시 시간 설정
-            setSyncDialogTime(currentTime);
-            syncDialogTimeRef.current = currentTime;
-            syncStartTimeRef.current = Date.now();
-            setShowSyncDialog(true);
+          // 비디오가 재생 중이고 초기화가 안 되었을 때
+          if (isPlaying && currentTime > 0 && !initialSyncDoneRef.current) {
+            // 사용자 조작이 있었다면 다이얼로그 없이 바로 재생
+            if (hasUserInteractedRef.current) {
+              console.log('사용자 조작이 있었으므로 다이얼로그 없이 바로 재생');
+              setTimeout(() => {
+                if (playerRef.current) {
+                  console.log('비디오 변경 후 재생 시작');
+                  playerRef.current.playVideo();
+                  initialSyncDoneRef.current = true;
+                }
+              }, 300); // 0.3초 지연 (성능 개선)
+            } else {
+              // 사용자 조작이 없었다면 다이얼로그 표시
+              setSyncDialogTime(currentTime);
+              syncDialogTimeRef.current = currentTime;
+              syncStartTimeRef.current = Date.now();
+              setShowSyncDialog(true);
+            }
           } else {
-            // 재생 중이 아니거나 이미 초기화되었거나 사용자 조작이 있었으면 바로 상태 적용
+            // 재생 중이 아니거나 이미 초기화되었으면 바로 상태 적용
             setTimeout(() => {
               if (playerRef.current) {
                 if (isPlaying) {

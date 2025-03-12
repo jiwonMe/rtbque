@@ -25,16 +25,16 @@ export default function VideoQueue({
   return (
     <div className={cn(
       "flex flex-col h-full",
-      "bg-dark-800 border-t border-dark-700"
+      "bg-dark-800/70 rounded-lg"
     )}>
       {/* 헤더 */}
       <div className={cn(
-        "px-4 py-3 border-b border-dark-700",
+        "px-5 py-4 border-b border-dark-700",
         "flex items-center justify-between"
       )}>
         <h2 className="text-base font-semibold text-gray-200">재생 목록</h2>
         <span className={cn(
-          "inline-flex items-center justify-center px-2 py-1 text-xs font-medium rounded-full",
+          "inline-flex items-center justify-center px-2.5 py-1 text-xs font-medium rounded-full",
           "bg-primary-900/50 text-primary-300"
         )}>
           {queue.length}개
@@ -44,7 +44,7 @@ export default function VideoQueue({
       {/* 현재 재생 중인 비디오 */}
       {currentVideo && (
         <div className={cn(
-          "p-3 border-b border-dark-700/50",
+          "p-4 border-b border-dark-700/50",
           "bg-gradient-to-r from-primary-900/20 to-dark-800/20"
         )}>
           <h3 className="text-xs font-medium text-primary-400 mb-2 flex items-center">
@@ -55,7 +55,7 @@ export default function VideoQueue({
             현재 재생 중
           </h3>
           <div className={cn(
-            "flex items-center p-2 rounded-md",
+            "flex items-center p-3 rounded-md",
             "bg-dark-700/50 hover:bg-dark-700 transition-all"
           )}>
             <div className="w-16 h-9 bg-dark-600 rounded overflow-hidden flex-shrink-0 mr-3 shadow-sm">
@@ -91,14 +91,14 @@ export default function VideoQueue({
       )}
       
       {/* 대기열 목록 */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto px-2">
         {queue.length > 0 ? (
           <div className="divide-y divide-dark-700/30">
             {queue.map((video, index) => (
               <div 
                 key={video.id}
                 className={cn(
-                  "flex items-center p-3",
+                  "flex items-center p-3 my-2 rounded-md",
                   "hover:bg-dark-750 transition-colors"
                 )}
               >

@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+// 동적 라우트로 명시적 설정
+export const dynamic = 'force-dynamic';
+
 /**
  * YouTube 검색 API 라우트 핸들러
  */
