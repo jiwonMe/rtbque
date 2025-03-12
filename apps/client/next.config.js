@@ -5,7 +5,7 @@ const nextConfig = {
   images: {
     domains: ['i.ytimg.com', 'img.youtube.com'],
   },
-  output: 'server',
+  output: 'standalone',
 };
 
 module.exports = nextConfig; 
