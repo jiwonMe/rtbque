@@ -45,6 +45,20 @@ const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(({
   const [playerError, setPlayerError] = useState<boolean>(false);
   const initialSyncDoneRef = useRef<boolean>(false);
   
+  // 플레이어 초기화 상태 추적
+  const [isPlayerReady, setIsPlayerReady] = useState<boolean>(false);
+  const pendingSeekRef = useRef<number | null>(null);
+  
+  // 음소거 상태 추적
+  const [isMuted, setIsMuted] = useState<boolean>(() => {
+    // 로컬 스토리지에서 음소거 상태 불러오기 (클라이언트 사이드에서만 실행)
+    if (typeof window !== 'undefined') {
+      const savedMute = localStorage.getItem('videoPlayerMuted');
+      return savedMute === 'true';
+    }
+    return false;
+  });
+  
   // 사용자 조작 여부를 추적하는 상태 변수 추가
   const hasUserInteractedRef = useRef<boolean>(false);
   
@@ -71,11 +85,12 @@ const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(({
     },
     seekTo: (seconds: number) => {
       try {
-        if (playerRef.current) {
+        if (playerRef.current && isPlayerReady) {
           console.log(`seekTo 호출: ${seconds}초`);
           playerRef.current.seekTo(seconds, true);
         } else {
-          console.warn('seekTo 실패: 플레이어가 초기화되지 않았습니다.');
+          console.warn('seekTo 실패: 플레이어가 초기화되지 않았습니다. 초기화 후 실행을 위해 대기열에 추가합니다.');
+          pendingSeekRef.current = seconds;
         }
       } catch (error) {
         console.error('seekTo 오류:', error);
@@ -83,7 +98,7 @@ const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(({
     },
     playVideo: () => {
       try {
-        if (playerRef.current) {
+        if (playerRef.current && isPlayerReady) {
           console.log('playVideo 호출');
           playerRef.current.playVideo();
         } else {
@@ -95,7 +110,7 @@ const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(({
     },
     pauseVideo: () => {
       try {
-        if (playerRef.current) {
+        if (playerRef.current && isPlayerReady) {
           console.log('pauseVideo 호출');
           playerRef.current.pauseVideo();
         } else {
@@ -177,9 +192,27 @@ const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(({
         hasUserInteracted: hasUserInteractedRef.current
       });
       
+      // 플레이어 초기화 상태 업데이트
+      setIsPlayerReady(true);
+      
       // 초기 시간 설정 (즉시 적용)
       console.log('초기 시간 설정:', currentTime);
       playerRef.current.seekTo(currentTime, true);
+      
+      // 음소거 상태 적용 (개인 설정)
+      console.log('음소거 상태 적용:', isMuted ? '음소거' : '소리 켜짐');
+      if (isMuted) {
+        playerRef.current.mute();
+      } else {
+        playerRef.current.unMute();
+      }
+      
+      // 대기 중인 seekTo 요청이 있으면 실행
+      if (pendingSeekRef.current !== null) {
+        console.log(`대기 중인 seekTo 요청 실행: ${pendingSeekRef.current}초`);
+        playerRef.current.seekTo(pendingSeekRef.current, true);
+        pendingSeekRef.current = null;
+      }
       
       // 비디오가 재생 중이고 초기화가 안 되었고 사용자 조작이 없었을 때만 다이얼로그 표시
       if (isPlaying && currentTime > 0 && !initialSyncDoneRef.current && !hasUserInteractedRef.current) {
@@ -539,6 +572,15 @@ const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(({
           console.log('비디오 변경 후 시간 설정:', currentTime);
           playerRef.current.seekTo(currentTime, true);
           
+          // 음소거 상태 유지 (개인 설정)
+          if (isMuted) {
+            console.log('비디오 변경 후 음소거 상태 유지');
+            playerRef.current.mute();
+          } else {
+            console.log('비디오 변경 후 소리 켜짐 상태 유지');
+            playerRef.current.unMute();
+          }
+          
           // 비디오가 재생 중이고 초기화가 안 되었고 사용자 조작이 없었을 때만 다이얼로그 표시
           if (isPlaying && currentTime > 0 && !initialSyncDoneRef.current && !hasUserInteractedRef.current) {
             // 다이얼로그 표시 시간 설정
@@ -569,6 +611,10 @@ const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(({
         console.log('플레이어가 아직 초기화되지 않았습니다. 초기화 후 상태를 적용합니다.');
         // 플레이어가 초기화되지 않았으면 초기화 상태만 리셋하고 handleReady에서 처리
       }
+    } else {
+      // 비디오가 없을 때 초기화 상태 리셋
+      setIsPlayerReady(false);
+      pendingSeekRef.current = null;
     }
   }, [video?.id, currentTime, isPlaying]);
   
@@ -581,6 +627,57 @@ const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(({
       }
     };
   }, []);
+  
+  // 재생 진행 바 클릭 핸들러
+  const handleProgressBarClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!playerRef.current || !isPlayerReady) return;
+    
+    // 사용자 조작 표시
+    hasUserInteractedRef.current = true;
+    isUserControlledRef.current = true;
+    
+    // 클릭 위치 계산
+    const rect = e.currentTarget.getBoundingClientRect();
+    const clickPosition = (e.clientX - rect.left) / rect.width;
+    const newTime = clickPosition * duration;
+    
+    // 시간 업데이트
+    setSeekValue(newTime);
+    setLocalCurrentTime(newTime);
+    
+    // 플레이어 시간 설정
+    playerRef.current.seekTo(newTime, true);
+    
+    // 서버에 시간 변경 알림
+    onSeek(newTime);
+    
+    // 사용자 조작 종료 (0.5초 후)
+    setTimeout(() => {
+      isUserControlledRef.current = false;
+    }, 500);
+  };
+  
+  // 음소거 토글 핸들러
+  const toggleMute = () => {
+    if (!playerRef.current || !isPlayerReady) return;
+    
+    const newMutedState = !isMuted;
+    setIsMuted(newMutedState);
+    
+    // 로컬 스토리지에 음소거 상태 저장 (개인 설정)
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('videoPlayerMuted', newMutedState.toString());
+    }
+    
+    if (newMutedState) {
+      playerRef.current.mute();
+    } else {
+      playerRef.current.unMute();
+    }
+    
+    // 사용자 조작 표시 (서버에 전파하지 않음)
+    hasUserInteractedRef.current = true;
+  };
   
   // 비디오가 없을 때 표시할 내용
   if (!video) {
@@ -654,7 +751,7 @@ const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(({
   
   return (
     <div className="mb-4 relative">
-      <div className="aspect-video bg-dark-900 rounded-lg overflow-hidden">
+      <div className="aspect-video bg-dark-900 rounded-lg overflow-hidden shadow-xl">
         {isValidVideoId && (
           <YouTube
             videoId={video.youtubeId}
@@ -707,79 +804,149 @@ const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(({
         </div>
       )}
       
-      <div className="mt-2 p-4 bg-dark-800 rounded-lg">
-        <h3 className="text-lg font-bold mb-2">{video.title}</h3>
+      <div className="mt-2 p-4 bg-dark-800/90 backdrop-blur-sm rounded-lg shadow-lg border border-dark-700">
+        {/* 비디오 제목 및 정보 */}
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-bold truncate pr-4">{video.title}</h3>
+          <div className="text-sm text-gray-400 whitespace-nowrap">
+            {formatTime(duration)}
+          </div>
+        </div>
         
-        <div className="flex items-center mb-2">
-          <button
-            onClick={handlePlayPause}
-            className="bg-primary-600 hover:bg-primary-700 rounded-full w-10 h-10 flex items-center justify-center mr-4"
-          >
-            {playerState === 1 ? (
-              <span className="sr-only">일시정지</span>
-            ) : (
-              <span className="sr-only">재생</span>
-            )}
-            {playerState === 1 ? '⏸️' : '▶️'}
-          </button>
-          
-          <div className="flex-1 flex items-center">
-            <span className="text-sm mr-2 w-12 text-right">
-              {formatTime(localCurrentTime)}
-            </span>
-            <input
-              type="range"
-              min="0"
-              max={duration || 100}
-              step="0.1"
-              value={seekValue}
-              onChange={handleSeekChange}
-              onMouseDown={handleSeekStart}
-              onMouseUp={handleSeekEnd}
-              onTouchStart={handleSeekStart}
-              onTouchEnd={handleSeekEnd}
-              className="flex-1 h-2 bg-dark-600 rounded-full appearance-none cursor-pointer"
-            />
-            <span className="text-sm ml-2 w-12">
-              {formatTime(duration)}
-            </span>
+        {/* 재생 컨트롤 영역 */}
+        <div className="flex flex-col mb-2">
+          {/* 재생 진행 바 */}
+          <div className="relative w-full h-2 bg-dark-600/80 rounded-full mb-3 group cursor-pointer" onClick={handleProgressBarClick}>
+            {/* 버퍼링 표시 */}
+            <div 
+              className="absolute top-0 left-0 h-full bg-dark-500/50 rounded-full"
+              style={{ width: `${Math.min(100, (localCurrentTime / (duration || 1)) * 100 + 15)}%` }}
+            ></div>
+            
+            {/* 재생 진행 상태 */}
+            <div 
+              className="absolute top-0 left-0 h-full bg-gradient-to-r from-primary-600 to-primary-500 rounded-full"
+              style={{ width: `${(localCurrentTime / (duration || 1)) * 100}%` }}
+            ></div>
+            
+            {/* 호버 시 표시되는 시간 미리보기 */}
+            <div className="absolute top-0 left-0 h-full w-full opacity-0 group-hover:opacity-100">
+              <div 
+                className="absolute -top-8 px-2 py-1 bg-dark-900/90 backdrop-blur-sm rounded text-xs transform -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity shadow-md border border-dark-700"
+                style={{ left: `${(seekValue / (duration || 1)) * 100}%` }}
+              >
+                {formatTime(seekValue)}
+              </div>
+            </div>
+            
+            {/* 시크 핸들 */}
+            <div 
+              className="absolute top-1/2 -mt-2 -ml-2 w-4 h-4 bg-primary-500 rounded-full shadow-md transform scale-0 group-hover:scale-100 transition-transform"
+              style={{ left: `${(seekValue / (duration || 1)) * 100}%` }}
+            ></div>
           </div>
           
-          <button
-            onClick={() => {
-              // 이미 스킵 중이거나 종료 처리 중이면 중복 호출 방지
-              if (isSkippingRef.current || videoEndedRef.current) {
-                console.log('이미 다음 비디오로 넘어가는 중, 중복 호출 무시');
-                return;
-              }
+          {/* 재생 컨트롤 및 시간 표시 */}
+          <div className="flex items-center">
+            {/* 재생/일시정지 버튼 */}
+            <button
+              onClick={handlePlayPause}
+              className="bg-primary-600 hover:bg-primary-500 rounded-full w-12 h-12 flex items-center justify-center mr-4 transition-colors shadow-lg"
+              aria-label={playerState === 1 ? "일시정지" : "재생"}
+            >
+              {playerState === 1 ? (
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
+                  <path fillRule="evenodd" d="M6.75 5.25a.75.75 0 01.75-.75H9a.75.75 0 01.75.75v13.5a.75.75 0 01-.75.75H7.5a.75.75 0 01-.75-.75V5.25zm7.5 0A.75.75 0 0115 4.5h1.5a.75.75 0 01.75.75v13.5a.75.75 0 01-.75.75H15a.75.75 0 01-.75-.75V5.25z" clipRule="evenodd" />
+                </svg>
+              ) : (
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
+                  <path fillRule="evenodd" d="M4.5 5.653c0-1.426 1.529-2.33 2.779-1.643l11.54 6.348c1.295.712 1.295 2.573 0 3.285L7.28 19.991c-1.25.687-2.779-.217-2.779-1.643V5.653z" clipRule="evenodd" />
+                </svg>
+              )}
+            </button>
+            
+            {/* 시간 표시 */}
+            <div className="flex-1 flex items-center">
+              <span className="text-sm mr-3 text-gray-300 font-medium w-14 text-right">
+                {formatTime(localCurrentTime)}
+              </span>
               
-              // 스킵 및 종료 상태 설정
-              isSkippingRef.current = true;
-              videoEndedRef.current = true;
+              {/* 시크 슬라이더 */}
+              <input
+                type="range"
+                min="0"
+                max={duration || 100}
+                step="0.1"
+                value={seekValue}
+                onChange={handleSeekChange}
+                onMouseDown={handleSeekStart}
+                onMouseUp={handleSeekEnd}
+                onTouchStart={handleSeekStart}
+                onTouchEnd={handleSeekEnd}
+                className="hidden"
+              />
               
-              // 사용자 조작 여부 표시 (건너뛰기 버튼 클릭도 사용자 조작으로 간주)
-              hasUserInteractedRef.current = true;
-              // 다음 비디오로 넘어가기 전에 현재 비디오 정보 초기화
-              initialSyncDoneRef.current = false;
-              onSkip();
-              
-              // 일정 시간 후 스킵 상태 초기화 (다음 스킵을 위해)
-              if (skipTimeoutRef.current) {
-                clearTimeout(skipTimeoutRef.current);
-              }
-              
-              skipTimeoutRef.current = setTimeout(() => {
-                isSkippingRef.current = false;
-                videoEndedRef.current = false;
-                skipTimeoutRef.current = null;
-              }, 3000); // 3초 동안 추가 스킵 방지
-            }}
-            className="bg-dark-600 hover:bg-dark-500 rounded-full w-10 h-10 flex items-center justify-center ml-4"
-            title="다음 곡"
-          >
-            <span className="sr-only">다음 곡</span>
-            ⏭️
-          </button>
+              <span className="text-sm ml-3 text-gray-400 w-14">
+                {formatTime(duration)}
+              </span>
+            </div>
+            
+            {/* 다음 곡 버튼 */}
+            <button
+              onClick={() => {
+                // 이미 스킵 중이거나 종료 처리 중이면 중복 호출 방지
+                if (isSkippingRef.current || videoEndedRef.current) {
+                  console.log('이미 다음 비디오로 넘어가는 중, 중복 호출 무시');
+                  return;
+                }
+                
+                // 스킵 및 종료 상태 설정
+                isSkippingRef.current = true;
+                videoEndedRef.current = true;
+                
+                // 사용자 조작 여부 표시 (건너뛰기 버튼 클릭도 사용자 조작으로 간주)
+                hasUserInteractedRef.current = true;
+                // 다음 비디오로 넘어가기 전에 현재 비디오 정보 초기화
+                initialSyncDoneRef.current = false;
+                onSkip();
+                
+                // 일정 시간 후 스킵 상태 초기화 (다음 스킵을 위해)
+                if (skipTimeoutRef.current) {
+                  clearTimeout(skipTimeoutRef.current);
+                }
+                
+                skipTimeoutRef.current = setTimeout(() => {
+                  isSkippingRef.current = false;
+                  videoEndedRef.current = false;
+                  skipTimeoutRef.current = null;
+                }, 3000); // 3초 동안 추가 스킵 방지
+              }}
+              className="bg-dark-700 hover:bg-dark-600 rounded-full w-10 h-10 flex items-center justify-center ml-2 transition-colors shadow"
+              aria-label="다음 곡"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+                <path d="M5.055 7.06c-1.25-.714-2.805.189-2.805 1.628v8.123c0 1.44 1.555 2.342 2.805 1.628L12 14.471v2.34c0 1.44 1.555 2.342 2.805 1.628l7.108-4.061c1.26-.72 1.26-2.536 0-3.256L14.805 7.06C13.555 6.346 12 7.25 12 8.688v2.34L5.055 7.06z" />
+              </svg>
+            </button>
+            
+            {/* 볼륨 버튼 */}
+            <button
+              onClick={toggleMute}
+              className="bg-dark-700 hover:bg-dark-600 rounded-full w-10 h-10 flex items-center justify-center ml-2 transition-colors shadow"
+              aria-label={isMuted ? "음소거 해제" : "음소거"}
+            >
+              {isMuted ? (
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+                  <path d="M13.5 4.06c0-1.336-1.616-2.005-2.56-1.06l-4.5 4.5H4.508c-1.141 0-2.318.664-2.66 1.905A9.76 9.76 0 001.5 12c0 .898.121 1.768.35 2.595.341 1.24 1.518 1.905 2.659 1.905h1.93l4.5 4.5c.945.945 2.561.276 2.561-1.06V4.06zM18.25 12a.75.75 0 00-.75-.75h-7.5a.75.75 0 000 1.5h7.5a.75.75 0 00.75-.75zM15.75 9.75a.75.75 0 000-1.5h-1.5a.75.75 0 000 1.5h1.5zM15.75 14.25a.75.75 0 000-1.5h-1.5a.75.75 0 000 1.5h1.5z" />
+                </svg>
+              ) : (
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+                  <path d="M13.5 4.06c0-1.336-1.616-2.005-2.56-1.06l-4.5 4.5H4.508c-1.141 0-2.318.664-2.66 1.905A9.76 9.76 0 001.5 12c0 .898.121 1.768.35 2.595.341 1.24 1.518 1.905 2.659 1.905h1.93l4.5 4.5c.945.945 2.561.276 2.561-1.06V4.06zM18.584 5.106a.75.75 0 011.06 0c3.808 3.807 3.808 9.98 0 13.788a.75.75 0 11-1.06-1.06 8.25 8.25 0 000-11.668.75.75 0 010-1.06z" />
+                  <path d="M15.932 7.757a.75.75 0 011.061 0 6 6 0 010 8.486.75.75 0 01-1.06-1.061 4.5 4.5 0 000-6.364.75.75 0 010-1.06z" />
+                </svg>
+              )}
+            </button>
+          </div>
         </div>
       </div>
     </div>

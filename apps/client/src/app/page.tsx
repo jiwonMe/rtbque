@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { generateRandomString } from '@/lib/utils';
+import { generateRandomString, cn } from '@/lib/utils';
 
 export default function Home() {
   const router = useRouter();
@@ -45,107 +45,135 @@ export default function Home() {
   };
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-4">
-      <div className="glass rounded-xl p-8 w-full max-w-md">
-        <h1 className="text-4xl font-bold text-center mb-8 text-shadow">
-          RTBQue
-          <span className="block text-lg font-normal mt-2 text-primary-300">동기화된 음악 재생</span>
-        </h1>
+    <main className="flex min-h-screen flex-col items-center justify-center p-4 bg-gradient-to-br from-dark-800/50 to-dark-900/50">
+      <div className="w-full max-w-md animate-fade-in">
+        {/* 로고 및 제목 */}
+        <div className="text-center mb-10">
+          <h1 className={cn(
+            "text-5xl font-bold mb-3 text-shadow",
+            "bg-clip-text text-transparent bg-gradient-to-r from-primary-400 to-secondary-400"
+          )}>
+            RTBQue
+          </h1>
+          <p className="text-lg text-gray-300">함께 음악을 즐기는 실시간 공간</p>
+        </div>
         
-        {isCreating ? (
-          <form onSubmit={handleCreateRoom} className="space-y-4">
-            <div>
-              <label htmlFor="userName" className="block text-sm font-medium mb-1">
-                이름
-              </label>
-              <input
-                type="text"
-                id="userName"
-                value={userName}
-                onChange={(e) => setUserName(e.target.value)}
-                className="w-full px-4 py-2 rounded-md bg-dark-700 border border-dark-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
-                placeholder="이름을 입력하세요"
-                required
-              />
-            </div>
-            
-            <div className="pt-4">
-              <button
-                type="submit"
-                className="w-full py-2 px-4 bg-primary-600 hover:bg-primary-700 rounded-md transition-colors"
-              >
-                방 만들기
-              </button>
-            </div>
-            
-            <div className="text-center">
-              <button
-                type="button"
-                onClick={() => setIsCreating(false)}
-                className="text-sm text-primary-300 hover:text-primary-200"
-              >
-                기존 방에 참가하기
-              </button>
-            </div>
-          </form>
-        ) : (
-          <form onSubmit={handleJoinRoom} className="space-y-4">
-            <div>
-              <label htmlFor="userName" className="block text-sm font-medium mb-1">
-                이름
-              </label>
-              <input
-                type="text"
-                id="userName"
-                value={userName}
-                onChange={(e) => setUserName(e.target.value)}
-                className="w-full px-4 py-2 rounded-md bg-dark-700 border border-dark-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
-                placeholder="이름을 입력하세요"
-                required
-              />
-            </div>
-            
-            <div>
-              <label htmlFor="roomId" className="block text-sm font-medium mb-1">
-                방 코드
-              </label>
-              <input
-                type="text"
-                id="roomId"
-                value={roomId}
-                onChange={(e) => setRoomId(e.target.value.toUpperCase())}
-                className="w-full px-4 py-2 rounded-md bg-dark-700 border border-dark-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
-                placeholder="6자리 코드 입력"
-                maxLength={6}
-                required
-              />
-            </div>
-            
-            <div className="pt-4">
-              <button
-                type="submit"
-                className="w-full py-2 px-4 bg-primary-600 hover:bg-primary-700 rounded-md transition-colors"
-              >
-                방 참가하기
-              </button>
-            </div>
-            
-            <div className="text-center">
-              <button
-                type="button"
-                onClick={() => setIsCreating(true)}
-                className="text-sm text-primary-300 hover:text-primary-200"
-              >
-                새 방 만들기
-              </button>
-            </div>
-          </form>
-        )}
+        {/* 카드 컨테이너 */}
+        <div className="glass rounded-xl overflow-hidden shadow-2xl">
+          {/* 탭 네비게이션 */}
+          <div className="flex border-b border-dark-700">
+            <button
+              onClick={() => setIsCreating(false)}
+              className={cn(
+                "flex-1 py-4 text-center transition-colors font-medium",
+                !isCreating 
+                  ? "bg-dark-800 text-primary-400 border-b-2 border-primary-500" 
+                  : "text-gray-400 hover:text-gray-300"
+              )}
+            >
+              방 참가하기
+            </button>
+            <button
+              onClick={() => setIsCreating(true)}
+              className={cn(
+                "flex-1 py-4 text-center transition-colors font-medium",
+                isCreating 
+                  ? "bg-dark-800 text-primary-400 border-b-2 border-primary-500" 
+                  : "text-gray-400 hover:text-gray-300"
+              )}
+            >
+              새 방 만들기
+            </button>
+          </div>
+          
+          {/* 폼 컨테이너 */}
+          <div className="p-6">
+            {isCreating ? (
+              <form onSubmit={handleCreateRoom} className="space-y-5">
+                <div className="space-y-1">
+                  <label htmlFor="create-userName" className="block text-sm font-medium text-gray-300">
+                    이름
+                  </label>
+                  <input
+                    type="text"
+                    id="create-userName"
+                    value={userName}
+                    onChange={(e) => setUserName(e.target.value)}
+                    className="w-full px-4 py-3 rounded-lg bg-dark-700 border border-dark-600 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+                    placeholder="이름을 입력하세요"
+                    required
+                  />
+                </div>
+                
+                <button
+                  type="submit"
+                  className={cn(
+                    "w-full py-3 px-4 rounded-lg font-medium transition-all",
+                    "bg-gradient-to-r from-primary-600 to-primary-500",
+                    "hover:from-primary-500 hover:to-primary-400",
+                    "focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 focus:ring-offset-dark-800",
+                    "hover-scale"
+                  )}
+                >
+                  새 방 만들기
+                </button>
+              </form>
+            ) : (
+              <form onSubmit={handleJoinRoom} className="space-y-5">
+                <div className="space-y-1">
+                  <label htmlFor="join-userName" className="block text-sm font-medium text-gray-300">
+                    이름
+                  </label>
+                  <input
+                    type="text"
+                    id="join-userName"
+                    value={userName}
+                    onChange={(e) => setUserName(e.target.value)}
+                    className="w-full px-4 py-3 rounded-lg bg-dark-700 border border-dark-600 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+                    placeholder="이름을 입력하세요"
+                    required
+                  />
+                </div>
+                
+                <div className="space-y-1">
+                  <label htmlFor="roomId" className="block text-sm font-medium text-gray-300">
+                    방 코드
+                  </label>
+                  <input
+                    type="text"
+                    id="roomId"
+                    value={roomId}
+                    onChange={(e) => setRoomId(e.target.value.toUpperCase())}
+                    className="w-full px-4 py-3 rounded-lg bg-dark-700 border border-dark-600 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all uppercase"
+                    placeholder="6자리 코드 입력"
+                    maxLength={6}
+                    required
+                  />
+                </div>
+                
+                <button
+                  type="submit"
+                  className={cn(
+                    "w-full py-3 px-4 rounded-lg font-medium transition-all",
+                    "bg-gradient-to-r from-primary-600 to-primary-500",
+                    "hover:from-primary-500 hover:to-primary-400",
+                    "focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 focus:ring-offset-dark-800",
+                    "hover-scale"
+                  )}
+                >
+                  방 참가하기
+                </button>
+              </form>
+            )}
+          </div>
+        </div>
+        
+        {/* 푸터 */}
+        <div className="mt-8 text-center text-sm text-gray-500">
+          <p>친구들과 함께 음악을 즐겨보세요!</p>
+          <p className="mt-2">© 2024 RTBQue</p>
+        </div>
       </div>
-      
-      <footer className="mt-8 text-center text-sm text-dark-300">
-        <p>여러 사용자가 동시에 음악을 감상할 수 있는 실시간 동기화 플랫폼</p>
-      </footer>
     </main>
   );
 } 

@@ -490,46 +490,137 @@ export default function RoomPage() {
   
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold mb-4">방에 입장하는 중...</h2>
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-500 mx-auto"></div>
+      <div className="min-h-screen flex flex-col bg-gradient-to-br from-dark-900 to-dark-800">
+        {/* 헤더 */}
+        <RoomHeader roomId={roomId} roomName={room?.name || '로딩 중...'} />
+        
+        {/* 메인 콘텐츠 */}
+        <div className="flex-1 container mx-auto px-4 py-6">
+          <div className="flex items-center justify-center h-full">
+            <div className="text-center">
+              <div className="w-16 h-16 border-4 border-primary-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+              <p className="text-lg text-gray-300">방 정보를 불러오는 중...</p>
+            </div>
+          </div>
         </div>
+        
+        {/* 푸터 */}
+        <footer className="bg-dark-900/80 border-t border-dark-700 py-4">
+          <div className="container mx-auto px-4 text-center text-sm text-gray-500">
+            <p>RTBQue - 실시간 음악 공유 플랫폼</p>
+          </div>
+        </footer>
       </div>
     );
   }
   
   return (
-    <div className="container mx-auto p-4">
-      <RoomHeader roomId={roomId} roomName={room?.name || `Room ${roomId}`} />
+    <div className="min-h-screen flex flex-col bg-gradient-to-br from-dark-900 to-dark-800">
+      {/* 헤더 */}
+      <RoomHeader roomId={roomId} roomName={room?.name || '로딩 중...'} />
       
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2">
-          <VideoPlayer
-            video={room?.currentVideo || null}
-            isPlaying={room?.isPlaying || false}
-            currentTime={room?.currentTime || 0}
-            onPlay={handlePlay}
-            onPause={handlePause}
-            onSeek={handleSeek}
-            onSkip={handleSkip}
-            onEnded={handleVideoEnded}
-            ref={videoPlayerRef}
-          />
+      {/* 메인 콘텐츠 */}
+      <div className="flex-1 container mx-auto px-4 py-6">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          {/* 비디오 플레이어 영역 */}
+          <div className="lg:col-span-8 space-y-6">
+            {/* 비디오 플레이어 */}
+            <div className="bg-dark-900/50 rounded-lg overflow-hidden border border-dark-700 shadow-lg">
+              <VideoPlayer
+                ref={videoPlayerRef}
+                video={room?.currentVideo || null}
+                isPlaying={room?.isPlaying || false}
+                currentTime={room?.currentTime || 0}
+                onPlay={() => {
+                  if (!isUserControlling) return;
+                  emit(SocketEvents.PLAY, {
+                    currentTime: videoPlayerRef.current?.getCurrentTime() || 0
+                  });
+                }}
+                onPause={() => {
+                  if (!isUserControlling) return;
+                  emit(SocketEvents.PAUSE, {
+                    currentTime: videoPlayerRef.current?.getCurrentTime() || 0
+                  });
+                }}
+                onSeek={(currentTime) => {
+                  if (!isUserControlling) return;
+                  emit(SocketEvents.SEEK, {
+                    currentTime
+                  });
+                }}
+                onSkip={() => {
+                  emit(SocketEvents.SKIP_CURRENT);
+                }}
+                onEnded={() => {
+                  emit(SocketEvents.VIDEO_ENDED);
+                }}
+              />
+            </div>
+            
+            {/* 비디오 대기열 */}
+            <VideoQueue
+              currentVideo={room?.currentVideo || null}
+              queue={room?.queue || []}
+              onRemove={(videoId) => {
+                emit(SocketEvents.REMOVE_FROM_QUEUE, { videoId });
+              }}
+              onSkip={() => {
+                emit(SocketEvents.SKIP_CURRENT);
+              }}
+            />
+          </div>
           
-          <VideoQueue
-            queue={room?.queue || []}
-            currentVideo={room?.currentVideo || null}
-            onRemove={handleRemoveFromQueue}
-            onSkip={handleSkip}
-          />
-        </div>
-        
-        <div>
-          <UserList users={room?.users || []} />
-          <SearchPanel onAddToQueue={handleAddToQueue} />
+          {/* 사이드바 */}
+          <div className="lg:col-span-4 space-y-6">
+            {/* 참가자 목록 */}
+            <UserList users={users} />
+            
+            {/* 검색 패널 */}
+            <SearchPanel
+              onAddToQueue={(video) => {
+                const videoToAdd: Video = {
+                  id: uuidv4(),
+                  title: video.title,
+                  thumbnail: video.thumbnail || `https://img.youtube.com/vi/${video.youtubeId}/mqdefault.jpg`,
+                  duration: video.duration,
+                  youtubeId: video.youtubeId,
+                  addedBy: userName
+                };
+                
+                emit(SocketEvents.ADD_TO_QUEUE, videoToAdd);
+              }}
+            />
+            
+            {/* 네트워크 상태 정보 */}
+            <div className="bg-dark-800/80 backdrop-blur-sm rounded-lg overflow-hidden border border-dark-700 shadow-lg">
+              <div className="bg-dark-900/50 px-4 py-3 border-b border-dark-700">
+                <h2 className="text-base font-semibold text-gray-200">연결 상태</h2>
+              </div>
+              <div className="p-4 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-400">연결 상태:</span>
+                  <span className={`text-sm font-medium flex items-center ${isConnected ? 'text-green-400' : 'text-red-400'}`}>
+                    <span className={`inline-block w-2 h-2 rounded-full mr-1.5 ${isConnected ? 'bg-green-400' : 'bg-red-400'}`}></span>
+                    {isConnected ? '연결됨' : '연결 끊김'}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-400">네트워크 지연:</span>
+                  <span className="text-sm font-medium text-gray-300">{networkLatency}ms</span>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
+      
+      {/* 푸터 */}
+      <footer className="bg-dark-900/80 border-t border-dark-700 py-4">
+        <div className="container mx-auto px-4 text-center text-sm text-gray-500">
+          <p>RTBQue - 실시간 음악 공유 플랫폼</p>
+        </div>
+      </footer>
     </div>
   );
 } 
